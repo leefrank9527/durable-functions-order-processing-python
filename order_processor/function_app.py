@@ -7,7 +7,12 @@ import orjson
 
 from models import *
 
+CONTENT_TYPE = 'application/json'
+
 app = df.DFApp(http_auth_level=func.AuthLevel.ANONYMOUS)
+
+
+# app = func.FunctionApp(http_auth_level=func.AuthLevel.ANONYMOUS)
 
 
 @app.route(route="orchestrators/process_orchestrator")
@@ -41,14 +46,36 @@ def process_orchestrator(context: df.DurableOrchestrationContext):
         options = orjson.loads(req_fixity_json_bytes)
         options['sn'] = i
         parallel_tasks.append(context.call_activity("fixity_file", options))
-
     results = yield context.task_all(parallel_tasks)
+    context.set_custom_status(results)
     return results
 
 
 @app.activity_trigger(input_name="req")
 def fixity_file(req):
     rsp = req
-    sleep(120)
+    sleep(1)
     print(rsp)
     return rsp
+
+
+# @app.route(route="worker/fixity")
+# def fixity_file_service(req: func.HttpRequest) -> func.HttpResponse:
+#     rsp = orjson.dumps({'success', True})
+#     sleep(2)
+#     print('fixity_file_service')
+#     return func.HttpResponse(
+#         body=rsp,
+#     )
+def hello_world(req: func.HttpRequest) -> func.HttpResponse:
+    name = req.params.get("name", "Anonymous")
+    # return func.HttpResponse(f"Hello, {name}!\r\n")
+    return func.HttpResponse(
+        orjson.dumps({"name": name}) + b'\r\n'
+    )
+
+
+@app.route(route="hello")
+@app.function_name(name="HttpHello")
+def http_hello(req: func.HttpRequest) -> func.HttpResponse:
+    return hello_world(req)
